@@ -30,7 +30,7 @@ This AI-assisted platform helps locate missing individuals by:
 
 ## How to Run
 ```bash
-git clone https://github.com/catmac25/WhereTheyBelong/edit/main/README.md
+git clone https://github.com/catmac25/WhereTheyBelong.git
 cd Finding-missing-person-using-AI
 pip install -r requirements.txt
 streamlit run Home.py
