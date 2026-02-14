@@ -2,3 +2,12 @@
 __pycache__
 sqlite_database.db
 classifier.pkl
+venv/
+backend/python_service/venv/
+__pycache__/
+*.pyc
+*.so
+*.dylib
+*.dat
+*.db
+.env
