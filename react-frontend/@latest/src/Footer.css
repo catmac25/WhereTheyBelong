@@ -1,0 +1,205 @@
+:root{
+    --bg-dark: #071029;
+    --panel-dark: #0b1220;
+    --text-dark: #e6eef8;
+    --muted-dark: #9fb0c7;
+    --accent: #4fd1c5;
+  
+    --bg-light: #f6fafc;
+    --panel-light: #ffffff;
+    --text-light: #0b1220;       /* black text for light mode */
+    --muted-light: #4b6473;
+  
+    /* input backgrounds for each theme */
+    --input-bg-dark: rgba(255,255,255,0.03);
+    --input-bg-light: rgba(241, 242, 246, 0.03);
+    --shadow-dark: 0 4px 24px rgba(1, 3, 13, 0.08);
+    --shadow-light: 0 6px 20px rgba(244, 244, 244, 0.06);
+  }
+  
+  /* Dark theme tokens */
+  [data-theme="dark"]{
+    --bg: var(--bg-dark);
+    --panel: var(--panel-dark);
+    --text: var(--text-dark);
+    --muted: var(--muted-dark);
+    --input-bg: var(--input-bg-dark);
+    --footer-border: rgba(255,255,255,0.06);
+    --footer-shadow: var(--shadow-dark);
+    color-scheme: dark;
+  }
+  
+  /* Light theme tokens (footer will be white and text black) */
+  [data-theme="light"]{
+    --bg: var(--bg-light);
+    --panel: var(--panel-light);
+    --text: var(--text-light);
+    --muted: var(--muted-light);
+    --input-bg: var(--input-bg-light);
+    /* slightly stronger border so it shows on light backgrounds */
+    --footer-border: rgba(11,18,32,0.06);
+    --footer-shadow: var(--shadow-light);
+    color-scheme: light;
+  }
+  
+  /* Base footer styling (uses theme tokens) */
+  .rc-footer{
+    /* use the panel token as the footer background so in light mode it becomes white */
+    background-color: var(--panel);
+    /* subtle gradient can remain but keep the panel color primary */
+    background-image: linear-gradient(180deg, rgba(0,0,0,0.00), rgba(0,0,0,0.00));
+    border-top: 1px solid var(--footer-border);
+    color: var(--text);
+    padding-top: 1.25rem;
+    border-radius: 12px 12px 0 0;
+    margin-top: 2rem;
+    box-shadow: var(--footer-shadow);
+    font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  }
+  
+  /* container */
+  .rc-footer__container{
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 1.25rem;
+    display: grid;
+    grid-template-columns: 1fr 1fr 320px;
+    gap: 1.25rem;
+    align-items: start;
+    background: transparent;
+  }
+  
+  /* brand */
+  .rc-brand .rc-logo{
+    display:inline-flex;
+    gap:.75rem;
+    align-items:center;
+    color:var(--text);
+    text-decoration:none;
+  }
+  .rc-brand svg{color:var(--accent); fill: currentColor;}
+  .rc-site-title{font-weight:700;font-size:1.05rem}
+  .rc-tag{color:var(--muted);margin:.5rem 0 0;font-size:.95rem}
+  
+  /* nav */
+  .rc-nav{display:flex;gap:2rem}
+  .rc-col h3{margin:0 0 .5rem 0;font-size:.95rem}
+  .rc-col ul{list-style:none;padding:0;margin:0}
+  .rc-col li{margin:.45rem 0}
+  .rc-col a{color:var(--muted);text-decoration:none;transition:color 180ms ease}
+  .rc-col a:hover{color:var(--text)}
+  
+  /* ensure links have sufficient contrast in light mode */
+  [data-theme="light"] .rc-col a{ color: #2b3a3f; }
+  [data-theme="light"] .rc-col a:hover{ color: #071029; }
+  
+  /* subscribe */
+  .rc-subscribe h3{margin:0 0 .25rem 0}
+  .rc-muted{color:var(--muted);margin:.25rem 0 1rem 0}
+  .rc-form{display:flex;gap:.5rem}
+  .rc-form input{
+    flex:1;
+    padding:.6rem .75rem;
+    background: var(--input-bg);
+    border:1px solid rgba(0,0,0,0.06);
+    color:var(--text);
+    border-radius:10px;
+    outline:none;
+    transition:box-shadow 200ms ease,border-color 200ms ease;
+  }
+  
+  /* light theme input tweaks for high contrast */
+  [data-theme="light"] .rc-form input{
+    background: var(--input-bg);
+    border:1px solid rgba(11,18,32,0.06);
+    color:var(--text);
+  }
+  
+  /* focus */
+  .rc-form input:focus{
+    box-shadow:0 6px 18px rgba(79,209,197,0.08);
+    border-color:var(--accent);
+  }
+  
+  /* placeholder color visible on both themes */
+  .rc-form input::placeholder{
+    color: var(--muted);
+    opacity: 0.95;
+  }
+  
+  .rc-btn{
+    padding:.55rem .8rem;
+    background:var(--accent);
+    color:#042027;
+    border:none;
+    border-radius:10px;
+    cursor:pointer;
+    font-weight:600;
+  }
+  
+  /* messages */
+  .rc-msg{margin-top:.5rem;font-size:.95rem}
+  .rc-error{color:#e11d48}
+  .rc-success{color:#059669}
+  
+  /* social */
+  .rc-social{display:flex;gap:.5rem;margin-top:.75rem}
+  .rc-social-link{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    width:36px;height:36px;border-radius:8px;
+    /* in light mode make the social background slightly tinted so they are visible on white */
+    background: rgba(0,0,0,0.03);
+    color:var(--text);text-decoration:none;
+    transition:transform 180ms ease,background 180ms ease;
+  }
+  .rc-social-link svg{ fill: currentColor; }
+  .rc-social-link:hover{ transform:translateY(-4px); background: rgba(79,209,197,0.12); color:var(--accent); }
+  
+  /* footnote */
+  .rc-footnote{
+    border-top:1px solid rgba(0,0,0,0.04);
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:1rem 1.25rem;
+    margin-top:.5rem;
+    max-width:1100px;
+    margin-left:auto;
+    margin-right:auto;
+    background: transparent;
+  }
+  .rc-footnote p{margin:0;color:var(--muted);font-size:.95rem}
+  .rc-footnote a{color:var(--muted);text-decoration:none}
+  .rc-footnote a:hover{color:var(--text)}
+  
+  /* ensure footnote border/contrast in light mode */
+  [data-theme="light"] .rc-footnote{
+    border-top-color: rgba(11,18,32,0.06);
+  }
+  [data-theme="light"] .rc-footnote p,
+  [data-theme="light"] .rc-footnote a{ color: #254043; }
+  
+  /* theme button */
+  .rc-theme-btn{
+    background:transparent;border:1px solid rgba(0,0,0,0.06);
+    color:var(--text);padding:.5rem .75rem;border-radius:8px;cursor:pointer;
+  }
+  [data-theme="light"] .rc-theme-btn{
+    border-color: rgba(11,18,32,0.08);
+    color: var(--text);
+  }
+  
+  /* utility */
+  .sr-only{
+    position:absolute!important;
+    width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;
+  }
+  
+  /* responsive */
+  @media (max-width: 980px){
+    .rc-footer__container{grid-template-columns:1fr;gap:1rem}
+    .rc-footnote{flex-direction:column;gap:.5rem;align-items:flex-start}
+    .rc-theme-btn{align-self:flex-end}
+  }

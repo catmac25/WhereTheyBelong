@@ -1,0 +1,76 @@
+import React, { useRef, useEffect, useImperativeHandle } from "react";
+import { useMotionValue, useSpring, useInView } from "framer-motion";
+
+function CountingNumber({
+  number,
+  fromNumber = 0,
+  padStart = false,
+  inView = false,
+  inViewMargin = "0px",
+  inViewOnce = true,
+  decimalSeparator = ".",
+  transition = { stiffness: 90, damping: 50 },
+  decimalPlaces = 0,
+  className,
+  forwardedRef,
+  ...props
+}) {
+  const localRef = useRef(null);
+
+  // Allow parent ref
+  useImperativeHandle(forwardedRef, () => localRef.current);
+
+  const decimals =
+    typeof decimalPlaces === "number"
+      ? decimalPlaces
+      : number.toString().includes(".")
+      ? number.toString().split(".")[1]?.length ?? 0
+      : 0;
+
+  const motionVal = useMotionValue(fromNumber);
+  const springVal = useSpring(motionVal, transition);
+  const inViewResult = useInView(localRef, { once: inViewOnce, margin: inViewMargin });
+  const isInView = !inView || inViewResult;
+
+  useEffect(() => {
+    if (isInView) motionVal.set(number);
+  }, [isInView, number, motionVal]);
+
+  useEffect(() => {
+    const unsubscribe = springVal.onChange((latest) => {
+      if (localRef.current) {
+        let formatted =
+          decimals > 0 ? latest.toFixed(decimals) : Math.round(latest).toString();
+
+        if (decimals > 0) {
+          formatted = formatted.replace(".", decimalSeparator);
+        }
+
+        if (padStart) {
+          const finalIntLength = Math.floor(Math.abs(number)).toString().length;
+          const [intPart, fracPart] = formatted.split(decimalSeparator);
+          const paddedInt = intPart?.padStart(finalIntLength, "0") ?? "";
+          formatted = fracPart ? `${paddedInt}${decimalSeparator}${fracPart}` : paddedInt;
+        }
+
+        localRef.current.textContent = formatted;
+      }
+    });
+
+    return () => unsubscribe();
+  }, [springVal, decimals, padStart, number, decimalSeparator]);
+
+  const finalIntLength = Math.floor(Math.abs(number)).toString().length;
+  const initialText = padStart
+    ? "0".padStart(finalIntLength, "0") +
+      (decimals > 0 ? decimalSeparator + "0".repeat(decimals) : "")
+    : "0" + (decimals > 0 ? decimalSeparator + "0".repeat(decimals) : "");
+
+  return (
+    <span ref={localRef} className={className} {...props}>
+      {initialText}
+    </span>
+  );
+}
+
+export default CountingNumber;
