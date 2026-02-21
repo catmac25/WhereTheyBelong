@@ -19,7 +19,11 @@ export default function RegisterNewCase() {
     adhaar_card: '',
     birthmarks: '',
     last_seen: '',
-    description: '',
+    height: 0.0,
+    weight: 0.0,
+    built: '',
+    district: '',
+    state: '',
     complainant_name: '',
     complainant_phone: ''
   })
@@ -59,10 +63,14 @@ export default function RegisterNewCase() {
     formData.append("fathers_name", form.fathers_name || "");
     formData.append("address", form.address || "");
     formData.append("adhaar_card", form.adhaar_card || "");
-    formData.append("description", form.description || "");
+    formData.append("height", form.height || 0.0);
+    formData.append("weight", form.weight || 0.0);
+    formData.append("built", form.built || "");
     formData.append("complainant_name", form.complainant_name || "");
     formData.append("mobile_number", form.complainant_phone || "");
     formData.append("birthmarks", form.birthmarks || "");
+    formData.append("district", form.district || "");
+    formData.append("state", form.state || "");
     formData.append("last_seen", form.last_seen || "");
 
     if (imageFile) {
@@ -72,7 +80,7 @@ export default function RegisterNewCase() {
     const res = await fetch(`http://localhost:4000/api/register`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${userToken}`,   // ADD THIS
+        Authorization: `Bearer ${userToken}`,
       },
       body: formData,
     });
@@ -100,7 +108,7 @@ export default function RegisterNewCase() {
       // reset form
       setForm({
         name: "", fathers_name: "", age: 10, mobile_number: "", address: "",
-        adhaar_card: "", birthmarks: "", last_seen: "", description: "",
+        adhaar_card: "", birthmarks: "", last_seen: "", height: 0.0, weight: 0.0, built: "", district: "", state: "",
         complainant_name: "", complainant_phone: ""
       });
       setImageFile(null);
@@ -242,16 +250,59 @@ export default function RegisterNewCase() {
           </div>
 
           <div className="col-span-2">
-            <label className="block text-xs font-medium text-gray-600">Description (optional)</label>
-            <textarea
-              placeholder="Description (optional)"
-              rows={4}
-              value={form.description}
-              onChange={e => setForm({ ...form, description: e.target.value })}
-              className="mt-1 w-full px-3 py-2 rounded-md border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+            <label className="block text-xs font-medium text-gray-600">Height (cm)</label>
+            <input
+              type="number"
+              placeholder="Height"
+              value={form.height}
+              onChange={e => setForm({ ...form, height: e.target.value })}
+              className="mt-1 w-full px-3 py-2 rounded-md border border-gray-200"
             />
           </div>
-                <div className="sm:col-span-1">
+          <div className="col-span-2">
+            <label className="block text-xs font-medium text-gray-600">Weight (kg)</label>
+            <input
+              type="number"
+              placeholder="Weight"
+              value={form.weight}
+              onChange={e => setForm({ ...form, weight: e.target.value })}
+              className="mt-1 w-full px-3 py-2 rounded-md border border-gray-200"
+            />
+          </div>
+          <div className="col-span-2">
+            <label className="block text-xs font-medium text-gray-600">Body Built</label>
+            <select
+              value={form.built}
+              onChange={e => setForm({ ...form, built: e.target.value })}
+              className="mt-1 w-full px-3 py-2 rounded-md border border-gray-200"
+            >
+              <option value="">Select</option>
+              <option value="Slim">Slim</option>
+              <option value="Average">Average</option>
+              <option value="Athletic">Athletic</option>
+              <option value="Heavy">Heavy</option>
+              <option value="Obese">Obese</option>
+            </select>
+          </div>
+          <div className="col-span-2">
+            <label className="block text-xs font-medium text-gray-600">District</label>
+            <input
+              placeholder="District"
+              value={form.district}
+              onChange={e => setForm({ ...form, district: e.target.value })}
+              className="mt-1 w-full px-3 py-2 rounded-md border border-gray-200"
+            />
+          </div>
+          <div className="col-span-2">
+            <label className="block text-xs font-medium text-gray-600">State</label>
+            <input
+              placeholder="State"
+              value={form.state}
+              onChange={e => setForm({ ...form, state: e.target.value })}
+              className="mt-1 w-full px-3 py-2 rounded-md border border-gray-200"
+            />
+          </div>
+          <div className="sm:col-span-1">
             <label className="block text-xs font-medium ">Complainant Name</label>
             <input
               placeholder="Complainant Name"
@@ -277,41 +328,41 @@ export default function RegisterNewCase() {
                 }`}
             />
           </div>
-        </div> 
-    
-          <div className="flex items-center justify-between gap-4 mt-2">
-            <div className="flex items-center gap-3">
-              <button
-                type="submit"
-                disabled={!canSubmit || saving}
-                className="px-4 py-2 rounded-md text-white border hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {saving ? 'Saving…' : 'Save'}
-              </button>
+        </div>
 
-              <button
-                type="button"
-                onClick={() => {
-                  setForm({
-                    name: '', fathers_name: '', age: 10, mobile_number: '', address: '', adhaar_card: '',
-                    birthmarks: '', last_seen: '', description: '', complainant_name: '', complainant_phone: ''
-                  })
-                  setImageFile(null)
-                  setImagePreviewUrl('')
-                  setMessage('')
-                  setError('')
-                }}
-                className="px-4 py-2 border rounded-md text-sm"
-              >
-                Reset
-              </button>
-            </div>
+        <div className="flex items-center justify-between gap-4 mt-2">
+          <div className="flex items-center gap-3">
+            <button
+              type="submit"
+              disabled={!canSubmit || saving}
+              className="px-4 py-2 rounded-md text-white border hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {saving ? 'Saving…' : 'Save'}
+            </button>
 
-            <div className="text-right">
-              {message ? <div style={{ color: 'green' }}>{message}</div> : null}
-              {error ? <div style={{ color: 'red' }}>{error}</div> : null}
-            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setForm({
+                  name: '', fathers_name: '', age: 10, mobile_number: '', address: '', adhaar_card: '',
+                  birthmarks: '', last_seen: '', height: 0.0, weight: 0.0, built: "", district: '', state: "", complainant_name: '', complainant_phone: ''
+                })
+                setImageFile(null)
+                setImagePreviewUrl('')
+                setMessage('')
+                setError('')
+              }}
+              className="px-4 py-2 border rounded-md text-sm"
+            >
+              Reset
+            </button>
           </div>
+
+          <div className="text-right">
+            {message ? <div style={{ color: 'green' }}>{message}</div> : null}
+            {error ? <div style={{ color: 'red' }}>{error}</div> : null}
+          </div>
+        </div>
       </form>
     </div>
   )

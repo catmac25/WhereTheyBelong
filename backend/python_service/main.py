@@ -147,6 +147,11 @@ async def register_case(
     mobile_number: str = Form(None),
     birthmarks: str = Form(None),
     last_seen: str = Form(None),
+    height: float = Form(None),
+    weight: float = Form(None),
+    built:str  = Form(None),
+    district: str = Form(None),
+    state: str = Form(None),
     image: UploadFile = File(...),
     user=Depends(verify_jwt)
 ):
@@ -166,7 +171,10 @@ async def register_case(
         "fathers_name": fathers_name,
         "address": address,
         "adhaar_card": adhaar_card,
-        "description": description,
+        "height": height,
+        "weight": weight,
+        "built": built,
+        
         "complainant_name": complainant_name
     })
     }
