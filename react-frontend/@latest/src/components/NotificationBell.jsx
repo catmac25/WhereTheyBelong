@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNotifications } from "../components /NotificationContext";
+import { useNotifications } from "../components/NotificationContext";
 import { FaBell } from "react-icons/fa";
 
 export default function NotificationBell() {
