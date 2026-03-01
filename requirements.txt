@@ -9,3 +9,6 @@ opencv-python
 sqlmodel
 mediapipe
 streamlit-authenticator==0.4.2
+transformers
+torch
+accelerate
