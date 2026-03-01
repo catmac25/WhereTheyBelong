@@ -17,6 +17,7 @@ const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const app = express();
 const {Server} = require("socket.io");
 const http = require("http");
+const { extractFields } = require("./extractFields");
 // Middlewares
 app.use(cors({
   origin: process.env.ALLOWED_ORIGINS?.split(",") || "*",
@@ -156,6 +157,28 @@ app.post('/api/register',upload.single('image'), async (req, res) => {
   }
 });
 
+// Register case without image (descriptive attributes only)
+app.post('/api/register-no-image', upload.none(), async (req, res) => {
+  try {
+    const formData = new FormData();
+    for (const key in req.body) {
+      formData.append(key, req.body[key]);
+    }
+
+    const resp = await axios.post(`${FASTAPI_URL}/register-no-image`, formData, {
+      headers: {
+        Authorization: req.headers.authorization,
+        ...formData.getHeaders(),
+      },
+    });
+
+    res.json(resp.data);
+  } catch (err) {
+    console.error("Register (no-image) error:", err?.response?.data || err.message);
+    res.status(500).json({ error: err?.response?.data || err.message });
+  }
+});
+
 app.get('/api/registered', async (req, res) => {
   try {
     const resp = await axios.get(`${FASTAPI_URL}/registered`, { params: req.query });
@@ -287,4 +310,8 @@ app.get("/api/images/:id", async (req, res) => {
 const PORT = process.env.PORT || 4000;
 server.listen(PORT, () => {
   console.log(`Node proxy server + Socket.io running on http://localhost:${PORT} → forwarding to ${FASTAPI_URL}`);
+
+// const text = "a boy wearing blue jacket seen near metro";
+
+// console.log(extractFields(text));
 });

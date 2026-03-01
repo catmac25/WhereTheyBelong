@@ -129,6 +129,41 @@ export default function ViewDetails() {
               <span className="font-medium dark:text-black">Last Seen:</span> {caseData.last_seen}
             </p>
 
+            <p className="text-sm mb-1 dark:text-black">
+              <span className="font-medium dark:text-black">Status:</span>{" "}
+              {caseData.status || "N/A"}
+            </p>
+
+            <p className="text-sm mb-1 dark:text-black">
+              <span className="font-medium dark:text-black">Height:</span>{" "}
+              {caseData.height ?? "N/A"}
+            </p>
+
+            <p className="text-sm mb-1 dark:text-black">
+              <span className="font-medium dark:text-black">Weight:</span>{" "}
+              {caseData.weight ?? "N/A"}
+            </p>
+
+            <p className="text-sm mb-1 dark:text-black">
+              <span className="font-medium dark:text-black">Built:</span>{" "}
+              {caseData.built ?? "N/A"}
+            </p>
+
+            <p className="text-sm mb-1 dark:text-black">
+              <span className="font-medium dark:text-black">District:</span>{" "}
+              {caseData.district ?? "N/A"}
+            </p>
+
+            <p className="text-sm mb-1 dark:text-black">
+              <span className="font-medium dark:text-black">State:</span>{" "}
+              {caseData.state ?? "N/A"}
+            </p>
+
+            <p className="text-sm mb-1 dark:text-black">
+              <span className="font-medium dark:text-black">Address:</span>{" "}
+              {caseData.address ?? "N/A"}
+            </p>
+
             <p className="text-sm mt-3 dark:text-black">
               <span className="font-medium dark:text-black">Birth Marks:</span>{" "}
               {caseData.birth_marks}
@@ -151,7 +186,7 @@ export default function ViewDetails() {
       )}
 
       {/* --- Map --- */}
-      <div className="w-full h-96 rounded-2xl overflow-hidden shadow-xl bg-gray-100">
+      {/* <div className="w-full h-96 rounded-2xl overflow-hidden shadow-xl bg-gray-100">
        (dataLoaded && 
         {destLoc && (
           <MapContainer
@@ -176,7 +211,32 @@ export default function ViewDetails() {
         )})else (
           <img src={rome_map} className="w-full h-full"/>
         )
-      </div>
+      </div> */}
+      <div className="w-full h-96 rounded-2xl overflow-hidden shadow-xl bg-gray-100">
+  {dataLoaded && destLoc ? (
+    <MapContainer
+      center={[destLoc.lat, destLoc.lng]}
+      zoom={13}
+      style={{ width: "100%", height: "100%" }}
+    >
+      <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+
+      {userLoc && (
+        <Marker position={[userLoc.lat, userLoc.lng]}>
+          <Popup>Your Location</Popup>
+        </Marker>
+      )}
+
+      <Marker position={[destLoc.lat, destLoc.lng]}>
+        <Popup>Destination: {caseData.name}</Popup>
+      </Marker>
+
+      {route && <Polyline positions={route} color="blue" />}
+    </MapContainer>
+  ) : (
+    <img src={rome_map} className="w-full h-full" />
+  )}
+</div>
     </div>
   );
 }

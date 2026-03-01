@@ -41,6 +41,11 @@ class RegisteredCases(SQLModel, table=True):
     submitted_on: datetime = Field(default_factory=datetime.utcnow, nullable=False)
     status: str = Field(max_length=16, nullable=False)
     birth_marks: str = Field(max_length=512)
+    height : double = Field(nullable=False)
+    weight : double = Field(nullable = False)
+    district: str = Field(max_length=128, nullable=True)
+    built: str = Field(max_length=128, nullable=True)
+    state: str = Field(max_length=128, nullable=True)
     matched_with: str = Field(nullable=True)
 
 

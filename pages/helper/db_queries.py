@@ -39,6 +39,10 @@ def fetch_registered_cases(submitted_by: str, status: str):
                 RegisteredCases.status,
                 RegisteredCases.last_seen,
                 RegisteredCases.matched_with,
+                RegisteredCases.height,
+                RegisteredCases.weight,
+                RegisteredCases.district,
+                RegisteredCases.state
             )
             .where(RegisteredCases.submitted_by == submitted_by)
             .where(RegisteredCases.status.in_(status))
@@ -117,6 +121,10 @@ def get_registered_case_detail(case_id: str):
                 RegisteredCases.age,
                 RegisteredCases.last_seen,
                 RegisteredCases.birth_marks,
+                RegisteredCases.height,
+                RegisteredCases.weight,
+                RegisteredCases.district,
+                RegisteredCases.state
             ).where(RegisteredCases.id == case_id)
         ).all()
         print(result)

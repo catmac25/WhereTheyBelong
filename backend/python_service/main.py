@@ -29,10 +29,10 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 UPLOAD_FOLDER = os.path.join(BASE_DIR, "uploads")
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-print("JWT_SECRET repr:", repr(JWT_SECRET))
+# print("JWT_SECRET repr:", repr(JWT_SECRET))
 from db import get_engine
 from crud import (
-    register_new_case, fetch_registered_cases, fetch_public_cases, get_training_data, new_public_case,
+    register_new_case, register_private_case, fetch_registered_cases, fetch_public_cases, get_training_data, new_public_case,
     get_public_case_detail, get_registered_case_detail, list_public_cases,
     update_found_status, get_registered_cases_count, get_registered_cases_by_user,
     get_public_sighting_count, get_matched_cases, get_user_count, get_user_details,get_registered_cases_counter, save_case_image,get_case_image_path
@@ -53,26 +53,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-# print("🔐 FASTAPI JWT SECRET =", JWT_SECRET)
-# print("🔐 FASTAPI ENV FILE LOADED =", os.getenv("JWT_SECRET"))
-# print("🔐 FASTAPI MODE =", os.getcwd())
-# @app.get("/api/geocode")
-# def geocode(q: str = Query(...)):
-#     url = "https://nominatim.openstreetmap.org/search"
-#     params = {"format": "json", "q": q}
-#     headers = {"User-Agent": "MyApp/1.0 (contact@example.com)"} 
 
-#     try:
-#         resp = requests.get(url, params=params, headers=headers, timeout=5)
-#         resp.raise_for_status()  
-#         data = resp.json()
-#         if not data:
-#             raise HTTPException(status_code=404, detail="Location not found")
-#         return data
-#     except requests.exceptions.RequestException as e:
-#         raise HTTPException(status_code=502, detail=f"Geocoding request failed: {e}")
-#     except ValueError:
-#         raise HTTPException(status_code=502, detail="Invalid response from geocoding service")
 @app.get("/api/geocode")
 def geocode(q: str = Query(...)):
     url = "https://nominatim.openstreetmap.org/search"
@@ -142,7 +123,6 @@ async def register_case(
     age: int = Form(...),
     address: str = Form(None),
     adhaar_card: str = Form(None),
-    description: str = Form(None),
     complainant_name: str = Form(None),
     mobile_number: str = Form(None),
     birthmarks: str = Form(None),
@@ -160,28 +140,88 @@ async def register_case(
     landmarks = extract_face_mesh_landmarks(image_np)
 
     case_dict = {
-    "name": name,
-    "age": age,
-    "birth_marks": birthmarks,
-    "complainant_mobile": mobile_number,
-    "submitted_by": user["email"],
-    "last_seen": last_seen,
-    "face_mesh": json.dumps(landmarks),
-    "extra_info": json.dumps({
-        "fathers_name": fathers_name,
-        "address": address,
-        "adhaar_card": adhaar_card,
-        "height": height,
-        "weight": weight,
-        "built": built,
-        
-        "complainant_name": complainant_name
-    })
+        "name": name,
+        "age": age,
+        "birth_marks": birthmarks,
+        "complainant_mobile": mobile_number,
+        "submitted_by": user["email"],
+        "last_seen": last_seen,
+        "face_mesh": json.dumps(landmarks),
+        # Write directly into real DB columns with sensible defaults
+        "height": height or 0.0,
+        "weight": weight or 0.0,
+        "built": built or "",
+        "district": district or "",
+        "state": state or "",
+        "address": address or "",
+        "adhaar_card": adhaar_card or "",
+        "complainant_name": complainant_name or "",
+        "fathers_name": fathers_name or "",
+        # Keep extra_info for backward compatibility / future flexibility
     }
 
     saved_case = register_new_case(case_dict)
     image.file.seek(0)
     save_case_image(saved_case.id, image)
+    return {"status": "success", "case_id": saved_case.id}
+
+
+@app.post("/register-no-image")
+async def register_case_no_image(
+    name: str = Form(...),
+    fathers_name: str = Form(None),
+    age: int = Form(...),
+    address: str = Form(None),
+    adhaar_card: str = Form(None),
+    complainant_name: str = Form(None),
+    mobile_number: str = Form(None),
+    birthmarks: str = Form(None),
+    last_seen: str = Form(None),
+    height: float = Form(None),
+    weight: float = Form(None),
+    built: str = Form(None),
+    district: str = Form(None),
+    state: str = Form(None),
+    tattoos: str = Form(None),
+    piercings: str = Form(None),
+    dental: str = Form(None),
+    spectacles: str = Form(None),
+    hair_type: str = Form(None),
+    hair_length: str = Form(None),
+    blood_group: str = Form(None),
+    user=Depends(verify_jwt),
+):
+    """
+    Register a case without an image (primarily for women),
+    relying on descriptive attributes instead of face mesh.
+    Uses the separate PrivateCaseRegistration model/table.
+    """
+    case_dict = {
+        "name": name,
+        "fathers_name": fathers_name or "",
+        "age": age,
+        "birth_marks": birthmarks or "",
+        "complainant_mobile": mobile_number or "",
+        "complainant_name": complainant_name or "",
+        "submitted_by": user["email"],
+        "last_seen": last_seen or "",
+        "address": address or "",
+        "adhaar_card": adhaar_card or "",
+        "height": height or 0.0,
+        "weight": weight or 0.0,
+        "built": built or "",
+        "district": district or "",
+        "state": state or "",
+        "tattoos": tattoos or "",
+        "piercings": piercings or "",
+        "dental": dental or "",
+        "spectacles": spectacles or "",
+        "hair_type": hair_type or "",
+        "hair_length": hair_length or "",
+        "blood_group": blood_group or "",
+    }
+
+    saved_case = register_private_case(case_dict)
     return {"status": "success", "case_id": saved_case.id}
 
 @app.get("/user-by-email")
