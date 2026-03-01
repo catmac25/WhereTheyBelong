@@ -253,7 +253,7 @@ export default function RegisterNewCase() {
             <label className="block text-xs font-medium text-gray-600">Height (cm)</label>
             <input
               type="number"
-              placeholder="Height"
+              placeholder="Height in cm"
               value={form.height}
               onChange={e => setForm({ ...form, height: e.target.value })}
               className="mt-1 w-full px-3 py-2 rounded-md border border-gray-200"
@@ -263,7 +263,7 @@ export default function RegisterNewCase() {
             <label className="block text-xs font-medium text-gray-600">Weight (kg)</label>
             <input
               type="number"
-              placeholder="Weight"
+              placeholder="Weight in kg"
               value={form.weight}
               onChange={e => setForm({ ...form, weight: e.target.value })}
               className="mt-1 w-full px-3 py-2 rounded-md border border-gray-200"
@@ -335,7 +335,7 @@ export default function RegisterNewCase() {
             <button
               type="submit"
               disabled={!canSubmit || saving}
-              className="px-4 py-2 rounded-md text-white border hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-2 rounded-md dark:text-white border hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {saving ? 'Saving…' : 'Save'}
             </button>

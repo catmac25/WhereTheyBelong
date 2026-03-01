@@ -56,8 +56,11 @@ elif st.session_state["login_status"]:
             adhaar_card = st.text_input("Adhaar Card")
             birthmarks = st.text_input("Birth Mark")
             last_seen = st.text_input("Last Seen")
-            description = st.text_area("Description (optional)")
-
+            height = st.double_input("height")
+            weight = st.double_input("weight")
+            district = st.text_input("District")
+            built = st.text_input("Built")
+            state = st.text_input("State")
             complainant_name = st.text_input("Complainant Name")
             complainant_phone = st.text_input("Complainant Phone")
 
@@ -76,6 +79,11 @@ elif st.session_state["login_status"]:
                 birth_marks=birthmarks,
                 address=address,
                 last_seen=last_seen,
+                height=height,
+                weight=weight,
+                district=district,
+                built=built,
+                state=state,
                 status="NF",
                 matched_with="",
             )

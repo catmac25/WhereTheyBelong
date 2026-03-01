@@ -7,7 +7,7 @@ export default function AdminLogin() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const user = "arpita2503";
-  const email = "crysmocatty15@gmail.com";
+  const email = "arpitaarorawork@gmail.com";
   const pw = "alpit2503";
   const navigate = useNavigate();
   const {login} = useAdminAuth();

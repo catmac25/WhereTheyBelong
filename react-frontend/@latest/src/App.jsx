@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom'
 import RegisterNewCase from './components/registerCase.jsx'
+import RegisterNoImageCase from './components/RegisterNoImageCase.jsx'
 import ThemeToggle from './components/ThemeToggle.jsx'
 import CursorFollower from './components/CursorFollower.jsx'
 import WavyText from './components/WavyText.jsx'
@@ -27,6 +28,7 @@ import PublicCasesList from './components/PublicCases.jsx'
 import UserProfile from './components/UserProfile.jsx'
 import MatchedData from './components/MatchedData.jsx'
 import PublicMap from './components/PublicMap.jsx'
+import ContactUs from './components/ContactUs.jsx'
 function AppContent() {
   const location = useLocation()
   const { isAdmin } = useAdminAuth();
@@ -93,6 +95,7 @@ function AppContent() {
           <Link to="/" className="text-sm hover:text-xl">Home</Link>
           <Link to="/publicsubmission" className="text-sm hover:text-xl">Report A Sighting</Link>
           <Link to="/adminlogin" className='text-sm hover:text-xl'>Login as Admin</Link>
+          <Link to="/contactus" className='text-sm hover:text-xl'>Contact Us</Link>
           <span className="ml-auto" />
           <ThemeToggle />
         </nav>
@@ -113,6 +116,9 @@ function AppContent() {
           <Link to="/user-dashboard" className="text-sm hover:text-xl">Dashboard</Link>
           <Link to="/profile" className="text-sm hover:text-xl">Profile</Link>
           <Link to="/register" className="text-sm hover:text-xl">Register Case</Link>
+          <Link to="/register-no-image" className="text-sm hover:text-xl">
+            Private Case Registration
+          </Link>
           
           <NotificationBell/>
           <button onClick={handleUserLogout} className="text-sm hover:text-xl">Logout</button>
@@ -172,6 +178,7 @@ function AppContent() {
           </div>
         } />
         <Route path="/register" element={<RegisterNewCase />} />
+        <Route path="/register-no-image" element={<RegisterNoImageCase />} />
         <Route path="/match" element={<MatchPage />} />
         <Route path="/adminlogin" element={<AdminLogin />} />
         <Route path="/dashboard" element={<AdminDashboard />} />
@@ -184,6 +191,7 @@ function AppContent() {
         <Route path="/profile" element = {<UserProfile/>}/>
         <Route path = "/matched/:id" element = {<MatchedData/>}/>
         <Route path = "/viewmap/:id" element = {<PublicMap/>}/>
+        <Route path ="/contactus" element = {<ContactUs/>}></Route>
       </Routes>
 
       <CursorFollower />

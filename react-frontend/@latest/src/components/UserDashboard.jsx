@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
+import Fuse from "fuse.js";
 import { useUserAuth } from "./UserAuthContext";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -6,6 +7,7 @@ import {useNavigate} from "react-router-dom";
 import { toast } from "react-toastify";
 export default function UserDashboard() {
   const [cases, setCases] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
   const [loadingId, setLoadingId] = useState(null);
   const [matchData, setMatchData] = useState(null);
   const navigate = useNavigate();
@@ -74,12 +76,33 @@ export default function UserDashboard() {
     }
   }
 
+  const filteredCases = useMemo(() => {
+    if (!searchQuery.trim()) return cases;
+    const fuse = new Fuse(cases, {
+      keys: ["name", "id", "last_seen", "status"],
+      threshold: 0.4,
+      ignoreLocation: true,
+      includeScore: true,
+    });
+    return fuse.search(searchQuery.trim()).map((r) => r.item);
+  }, [cases, searchQuery]);
+
   return (
     <div className="max-w-3xl mx-auto p-6">
       <ToastContainer />
       <h2 className="text-2xl font-bold mb-4">Your Registered Cases</h2>
 
-      {cases.map(c => (
+      <div className="mb-6 flex justify-center">
+        <input
+          type="text"
+          placeholder="Search by name, case ID, last seen, or status..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-full max-w-md px-4 py-2.5 rounded-full border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-200 text-sm"
+        />
+      </div>
+
+      {filteredCases.map(c => (
         <div
           key={c.id}
           className=" shadow rounded-2xl p-4 mb-4 flex justify-between items-center border"

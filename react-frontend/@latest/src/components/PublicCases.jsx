@@ -1,10 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
+import Fuse from 'fuse.js';
 
 // A modern-classic card layout for each registered case
 const PublicCasesList = () => {
   const [cases, setCases] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     fetch('http://localhost:4000/api/publiccases')
@@ -22,6 +24,19 @@ const PublicCasesList = () => {
       });
   }, []);
 
+  const filteredCases = useMemo(() => {
+    if (!searchQuery.trim()) return cases;
+
+    const fuse = new Fuse(cases, {
+      keys: ['name', 'location', 'birth_marks', 'submitted_by', 'mobile', 'id'],
+      threshold: 0.4,
+      ignoreLocation: true,
+      includeScore: true,
+    });
+
+    return fuse.search(searchQuery.trim()).map((r) => r.item);
+  }, [cases, searchQuery]);
+
   if (loading) return <div className="centered">Loading cases...</div>;
   if (error) return <div className="centered error">Error: {error}</div>;
   if (cases.length === 0) return <div className="centered">No cases registered.</div>;
@@ -29,8 +44,17 @@ const PublicCasesList = () => {
   return (
     <div style={styles.container}>
       <h2 style={styles.heading}>Public Sightings</h2>
+      <div style={styles.searchContainer}>
+        <input
+          type="text"
+          placeholder="Search by name, location, ID, submitted by, birth marks..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          style={styles.searchInput}
+        />
+      </div>
       <div style={styles.grid}>
-        {cases.map((c) => (
+        {filteredCases.map((c) => (
           <div key={c.id} style={styles.card} className="case-card">
             <div style={styles.cardHeader}>
               <span style={styles.avatar}>{c.name?.charAt(0) || "?"}</span>
@@ -94,6 +118,21 @@ const styles = {
     letterSpacing: "0.5px",
     textAlign: 'center',
     fontFamily: "serif, Georgia, Times, 'Times New Roman'"
+  },
+  searchContainer: {
+    marginBottom: '1.5rem',
+    display: 'flex',
+    justifyContent: 'center',
+  },
+  searchInput: {
+    width: '100%',
+    maxWidth: '420px',
+    padding: '0.65rem 0.9rem',
+    borderRadius: '999px',
+    border: '1px solid #d0d7ff',
+    fontSize: '0.95rem',
+    outline: 'none',
+    boxShadow: '0 1px 4px rgba(15, 23, 42, 0.05)',
   },
   grid: {
     display: "grid",

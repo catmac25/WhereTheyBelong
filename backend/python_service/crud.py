@@ -3,7 +3,7 @@ from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.responses import FileResponse
 from db import get_engine
 from sqlalchemy import func
-from models import RegisteredCases, PublicSubmissions, User, CaseImage
+from models import RegisteredCases, PublicSubmissions, User, CaseImage, PrivateCaseRegistration
 import json
 import os
 import pandas as pd
@@ -43,6 +43,16 @@ def register_new_case(case_dict):
         session.commit()
         session.refresh(case)
         return case
+
+
+def register_private_case(case_dict):
+    """Register a no-image / private case into the dedicated PrivateCaseRegistration table."""
+    case = PrivateCaseRegistration(**case_dict)
+    with Session(engine) as session:
+        session.add(case)
+        session.commit()
+        session.refresh(case)
+        return case
 def get_registered_cases_by_user(email: str, status: str = "All"):
     # Map status filter
     if status == "All":
@@ -65,7 +75,11 @@ def get_registered_cases_by_user(email: str, status: str = "All"):
                 RegisteredCases.matched_with,
                 RegisteredCases.birth_marks,
                 RegisteredCases.created_at,
-
+                RegisteredCases.height,
+                RegisteredCases.weight,
+                RegisteredCases.built,
+                RegisteredCases.district,
+                RegisteredCases.state,
             )
             .where(RegisteredCases.status.in_(status_list))
             .where(RegisteredCases.submitted_by == email)     # 🔥 filter by user email
@@ -93,6 +107,11 @@ def fetch_registered_cases(status: str = "All"):
                 RegisteredCases.status,
                 RegisteredCases.last_seen,
                 RegisteredCases.matched_with,
+                RegisteredCases.height,
+                RegisteredCases.weight,
+                RegisteredCases.built,
+                RegisteredCases.district,
+                RegisteredCases.state,
             )
             .where(RegisteredCases.status.in_(status_list))
         )
@@ -170,7 +189,6 @@ def get_public_case_detail(case_id: str):
 
 
 def get_registered_case_detail(case_id: str):
-    case_uuid = uuid.UUID(case_id)
     with Session(engine) as session:
         stmt = select(
             RegisteredCases.name,
@@ -178,16 +196,64 @@ def get_registered_case_detail(case_id: str):
             RegisteredCases.last_seen,
             RegisteredCases.birth_marks,
             RegisteredCases.created_at,
+            RegisteredCases.status,
+            RegisteredCases.height,
+            RegisteredCases.weight,
+            RegisteredCases.built,
+            RegisteredCases.district,
+            RegisteredCases.state,
+            RegisteredCases.address,
+            RegisteredCases.adhaar_card,
+            RegisteredCases.complainant_name,
+            RegisteredCases.fathers_name,
+            RegisteredCases.extra_info,
         ).where(RegisteredCases.id == case_id)
         result = session.exec(stmt).first()
         if result:
-            # Convert tuple to dict
+            (
+                name,
+                age,
+                last_seen,
+                birth_marks,
+                created_at,
+                status,
+                height,
+                weight,
+                built,
+                district,
+                state,
+                address,
+                adhaar_card,
+                complainant_name,
+                fathers_name,
+                extra_info,
+            ) = result
+
+            # Safely parse extra_info JSON for legacy/older rows
+            extra = {}
+            if extra_info:
+                try:
+                    extra = json.loads(extra_info)
+                except (TypeError, json.JSONDecodeError):
+                    extra = {}
+
+            # Prefer real columns; fall back to extra_info if needed
             return {
-                "name": result[0],
-                "age": result[1],
-                "last_seen": result[2],
-                "birth_marks": result[3],
-                "created_at": result[4],
+                "name": name,
+                "age": age,
+                "last_seen": last_seen,
+                "birth_marks": birth_marks,
+                "created_at": created_at,
+                "status": status,
+                "height": height if height is not None else extra.get("height"),
+                "weight": weight if weight is not None else extra.get("weight"),
+                "built": built if built is not None else extra.get("built"),
+                "district": district if district is not None else extra.get("district"),
+                "state": state if state is not None else extra.get("state"),
+                "address": address if address is not None else extra.get("address"),
+                "adhaar_card": adhaar_card if adhaar_card is not None else extra.get("adhaar_card"),
+                "complainant_name": complainant_name if complainant_name is not None else extra.get("complainant_name"),
+                "fathers_name": fathers_name if fathers_name is not None else extra.get("fathers_name"),
             }
         return None
 
