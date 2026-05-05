@@ -5,38 +5,64 @@ import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import {useNavigate} from "react-router-dom";
 import { toast } from "react-toastify";
+import Loader from "./Loader";
 export default function UserDashboard() {
   const [cases, setCases] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [loadingId, setLoadingId] = useState(null);
-  const [matchData, setMatchData] = useState(null);
+  /** Per-case match API response (face match or private attribute match). */
+  const [matchesByCaseId, setMatchesByCaseId] = useState({});
+  const [casesError, setCasesError] = useState("");
   const navigate = useNavigate();
-  const handleViewCase= (caseId) => {
+  const handleViewCase = (caseId) => {
+    if (!caseId || caseId === "undefined") return;
     navigate(`/casedetails/${caseId}`);
-  }
+  };
   // ✅ Hook must be at top level
   const { user } = useUserAuth();
   const userToken = user?.token;
-  const handleViewMatches = (caseid) => {
-    navigate(`/matched/${caseid}`, {
+  const handleViewMatches = (caseItem) => {
+    const md = matchesByCaseId[caseItem.id];
+    if (!md) {
+      toast.error("Run “Check for Match” on this case first.");
+      return;
+    }
+    navigate(`/matched/${caseItem.id}`, {
       state: {
-        matchData : matchData
-      }
+        matchData: md,
+        caseType: caseItem.case_type || "registered",
+      },
     });
-  }
+  };
   useEffect(() => {
     async function fetchCases() {
       try {
+        setCasesError("");
         const res = await fetch("http://localhost:4000/api/cases", {
           headers: {
             Authorization: `Bearer ${userToken}`,
             "Content-Type": "application/json",
           },
         });
-        const data = await res.json();
+        const data = await res.json().catch(() => null);
+        if (!res.ok) {
+          const msg =
+            (data && (data.detail || data.error || data.message)) ||
+            `Failed to fetch cases (HTTP ${res.status})`;
+          setCases([]);
+          setCasesError(msg);
+          return;
+        }
+        if (!Array.isArray(data)) {
+          setCases([]);
+          setCasesError("Unexpected response while loading cases.");
+          return;
+        }
         setCases(data);
       } catch (err) {
         console.error("Error fetching cases:", err);
+        setCases([]);
+        setCasesError(err?.message || "Failed to fetch cases.");
       }
     }
 
@@ -45,27 +71,37 @@ export default function UserDashboard() {
   async function handleCheckMatch(caseId) {
     setLoadingId(caseId);
     try {
-      const res = await fetch("/api/match", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${userToken}`,
-        }, // send case ID in body
-        body: JSON.stringify({ registeredId: caseId }),
-      });
+      const current = cases.find((c) => c.id === caseId);
+      let res;
+      if (current?.case_type === "private") {
+        res = await fetch(`http://localhost:4000/api/match-private/${encodeURIComponent(caseId)}`);
+      } else {
+        res = await fetch("/api/match", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${userToken}`,
+          }, // send case ID in body
+          body: JSON.stringify({ registeredId: caseId }),
+        });
+      }
 
-      // const data = await res.json();
       const data = await res.json();
       console.log("Match response data:", data);
-      setMatchData(data);
+      const normalized = {
+        ...data,
+        registeredId: data.registeredId || caseId,
+      };
+      setMatchesByCaseId((prev) => ({ ...prev, [caseId]: normalized }));
+
       if (data.matched) {
         toast.success(`Match found!`);
       } else {
         toast.error("No match found for this case.");
       }
 
-      setCases(prev =>
-        prev.map(c =>
+      setCases((prev) =>
+        prev.map((c) =>
           c.id === caseId ? { ...c, matchFound: data.matched } : c
         )
       );
@@ -76,8 +112,14 @@ export default function UserDashboard() {
     }
   }
 
+  const activeMatchCase = useMemo(
+    () => (loadingId ? cases.find((c) => c.id === loadingId) : null),
+    [loadingId, cases]
+  );
+
   const filteredCases = useMemo(() => {
-    if (!searchQuery.trim()) return cases;
+    const list = Array.isArray(cases) ? cases : [];
+    if (!searchQuery.trim()) return list;
     const fuse = new Fuse(cases, {
       keys: ["name", "id", "last_seen", "status"],
       threshold: 0.4,
@@ -89,8 +131,13 @@ export default function UserDashboard() {
 
   return (
     <div className="max-w-3xl mx-auto p-6">
+      <Loader
+        open={Boolean(loadingId)}
+        mode="overlay"
+        activeCaseType={activeMatchCase?.case_type ?? null}
+      />
       <ToastContainer />
-      <h2 className="text-2xl font-bold mb-4">Your Registered Cases</h2>
+      <h2 className="text-2xl font-bold mb-4">Your Cases</h2>
 
       <div className="mb-6 flex justify-center">
         <input
@@ -102,13 +149,22 @@ export default function UserDashboard() {
         />
       </div>
 
-      {filteredCases.map(c => (
+      {casesError ? (
+        <div className="p-4 rounded-xl border border-red-200 bg-red-50 text-red-700 text-sm">
+          {casesError}
+        </div>
+      ) : null}
+
+      {Array.isArray(filteredCases) && filteredCases.map(c => (
         <div
           key={c.id}
           className=" shadow rounded-2xl p-4 mb-4 flex justify-between items-center border"
         >
           <div>
             <p className="text-lg font-bold">CASE ID : {c.id}</p>
+            {c.case_type === "private" && (
+              <p className="text-xs font-semibold text-purple-700">PRIVATE (NO IMAGE)</p>
+            )}
             <p className="text-md font-medium">NAME : {c.name}</p>
             <p className="text-md font-medium">LAST SEEN AT : {c.last_seen}</p>
             
@@ -133,9 +189,12 @@ export default function UserDashboard() {
               View Details
             </button>
             {c.matchFound && (
-              <button onClick={()=> handleViewMatches(c.id)}
-              className="px-4 py-2 rounded-xl bg-green-600 text-white hover:bg-green-700 mt-4">
-                View Matche(S)
+              <button
+                type="button"
+                onClick={() => handleViewMatches(c)}
+                className="px-4 py-2 rounded-xl bg-green-600 text-white hover:bg-green-700 mt-4"
+              >
+                View matches
               </button>
             )}
           </div>

@@ -87,6 +87,83 @@ def get_registered_cases_by_user(email: str, status: str = "All"):
 
         results = session.exec(stmt).all()
         return [dict(row._mapping) for row in results]
+
+def get_all_cases_by_user(email: str, status: str = "All"):
+    """
+    Return both image-based registered cases and no-image/private cases for a user.
+    Output is a unified list with a `case_type` field: "registered" | "private".
+    """
+    # Map status filter
+    if status == "All":
+        status_list = ["F", "NF"]
+    elif status == "Found":
+        status_list = ["F"]
+    elif status == "Not Found":
+        status_list = ["NF"]
+    else:
+        status_list = [status]
+
+    with Session(engine) as session:
+        reg_stmt = (
+            select(
+                RegisteredCases.id,
+                RegisteredCases.name,
+                RegisteredCases.age,
+                RegisteredCases.status,
+                RegisteredCases.last_seen,
+                RegisteredCases.matched_with,
+                RegisteredCases.birth_marks,
+                RegisteredCases.created_at,
+            )
+            .where(RegisteredCases.status.in_(status_list))
+            .where(RegisteredCases.submitted_by == email)
+        )
+        reg_results = session.exec(reg_stmt).all()
+        reg_cases = [
+            {
+                **dict(row._mapping),
+                "case_type": "registered",
+            }
+            for row in reg_results
+        ]
+
+        priv_stmt = (
+            select(
+                PrivateCaseRegistration.id,
+                PrivateCaseRegistration.name,
+                PrivateCaseRegistration.age,
+                PrivateCaseRegistration.status,
+                PrivateCaseRegistration.last_seen,
+                PrivateCaseRegistration.matched_with,
+                PrivateCaseRegistration.birth_marks,
+                PrivateCaseRegistration.created_at,
+            )
+            .where(PrivateCaseRegistration.status.in_(status_list))
+            .where(PrivateCaseRegistration.submitted_by == email)
+        )
+        priv_results = session.exec(priv_stmt).all()
+        priv_cases = [
+            {
+                **dict(row._mapping),
+                "case_type": "private",
+            }
+            for row in priv_results
+        ]
+
+        def _to_sort_ts(dt):
+            # Normalize both offset-aware and offset-naive datetimes to a numeric timestamp.
+            # If dt is missing or invalid, return 0 so it sorts last.
+            try:
+                if dt is None:
+                    return 0
+                # if timezone-aware, .timestamp() is fine; if naive, treat as-is
+                return float(dt.timestamp())
+            except Exception:
+                return 0
+
+        all_cases = reg_cases + priv_cases
+        all_cases.sort(key=lambda c: _to_sort_ts(c.get("created_at")), reverse=True)
+        return all_cases
     
 def fetch_registered_cases(status: str = "All"):
     if status == "All":
@@ -206,6 +283,7 @@ def get_registered_case_detail(case_id: str):
             RegisteredCases.adhaar_card,
             RegisteredCases.complainant_name,
             RegisteredCases.fathers_name,
+            RegisteredCases.submitted_by,
             RegisteredCases.extra_info,
         ).where(RegisteredCases.id == case_id)
         result = session.exec(stmt).first()
@@ -226,6 +304,7 @@ def get_registered_case_detail(case_id: str):
                 adhaar_card,
                 complainant_name,
                 fathers_name,
+                submitted_by,
                 extra_info,
             ) = result
 
@@ -254,6 +333,7 @@ def get_registered_case_detail(case_id: str):
                 "adhaar_card": adhaar_card if adhaar_card is not None else extra.get("adhaar_card"),
                 "complainant_name": complainant_name if complainant_name is not None else extra.get("complainant_name"),
                 "fathers_name": fathers_name if fathers_name is not None else extra.get("fathers_name"),
+                "submitted_by": submitted_by,
             }
         return None
 
@@ -298,6 +378,29 @@ def get_registered_cases_count(submitted_by: str, status: str):
             RegisteredCases.status == status
         )
         return len(session.exec(stmt).all())
+
+def get_total_cases_count(submitted_by: str, status: str):
+    """
+    Count total cases reported by a user across BOTH tables:
+    - RegisteredCases (image-based)
+    - PrivateCaseRegistration (no-image/private)
+    """
+    with Session(engine) as session:
+        reg_count = session.exec(
+            select(func.count(RegisteredCases.id)).where(
+                RegisteredCases.submitted_by == submitted_by,
+                RegisteredCases.status == status,
+            )
+        ).one()
+
+        private_count = session.exec(
+            select(func.count(PrivateCaseRegistration.id)).where(
+                PrivateCaseRegistration.submitted_by == submitted_by,
+                PrivateCaseRegistration.status == status,
+            )
+        ).one()
+
+        return int(reg_count or 0) + int(private_count or 0)
 def get_user_count():
     with Session(engine) as session:
         count = session.exec(select(func.count(User.id))).one()
@@ -319,3 +422,24 @@ def get_matched_cases():
             select(func.count(RegisteredCases.id)).where(RegisteredCases.status == "F")
         ).one()
         return {"count": count}
+
+def get_private_case_detail(case_id: str):
+    with Session(engine) as session:
+        stmt = select(PrivateCaseRegistration).where(PrivateCaseRegistration.id == case_id)
+        result = session.exec(stmt).first()
+        if result:
+            return result.dict()
+        return None
+
+def update_public_case_features(case_id: str, features: dict):
+    with Session(engine) as session:
+        pub = session.get(PublicSubmissions, case_id)
+        if not pub:
+            return None
+        if "skintone" in features: pub.skintone = features["skintone"]
+        if "spectacles" in features: pub.spectacles = features["spectacles"]
+        if "hair_color" in features: pub.hair_color = features["hair_color"]
+        session.add(pub)
+        session.commit()
+        session.refresh(pub)
+        return pub

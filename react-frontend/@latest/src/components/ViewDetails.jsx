@@ -18,7 +18,11 @@ export default function ViewDetails() {
   useEffect(() => {
     async function fetchCase() {
       try {
-        const res = await fetch(`http://localhost:4000/api/cases/${id}`);
+        if (!id || id === "undefined") {
+          setCaseData(null);
+          return;
+        }
+        const res = await fetch(`http://localhost:4000/api/case/${encodeURIComponent(id)}`);
         const data = await res.json();
         setCaseData(data);
       } catch (err) {
@@ -30,6 +34,10 @@ export default function ViewDetails() {
   useEffect(() => {
     async function fetchImage () {
       try{
+        if (!caseData || caseData.case_type !== "registered") {
+          setImageUrl(null);
+          return;
+        }
         const res = await fetch(`http://localhost:4000/api/images/${id}`);
         const data = await res.json(); // parse JSON
         setImageUrl(data.image_path);     // 
@@ -38,7 +46,7 @@ export default function ViewDetails() {
       }
     }
     fetchImage();
-  }, [id])
+  }, [id, caseData])
   useEffect(() => {
     navigator.geolocation.getCurrentPosition(
       (pos) =>
@@ -98,6 +106,9 @@ export default function ViewDetails() {
     fetchRoute();
   }, [userLoc, destLoc]);
 
+  if (!id || id === "undefined")
+    return <p className="mt-10 text-center text-red-600">Invalid case link.</p>;
+
   if (!caseData)
     return <p className="text-center mt-10">Loading case details...</p>;
 
@@ -109,11 +120,17 @@ export default function ViewDetails() {
 
         {/* ✔️ Image Section */}
         <div className="w-full md:w-1/3">
-          <img
-            src={`http://localhost:8000${image}`}
-            alt="Person"
-            className="w-full h-64 object-cover rounded-xl shadow-md"
-          />
+          {image ? (
+            <img
+              src={`http://localhost:8000${image}`}
+              alt="Person"
+              className="w-full h-64 object-cover rounded-xl shadow-md"
+            />
+          ) : (
+            <div className="w-full h-64 rounded-xl shadow-md bg-slate-200 flex items-center justify-center text-slate-700">
+              No image (private case)
+            </div>
+          )}
         </div>
 
         {/* ✔️ Details Section */}
@@ -168,6 +185,39 @@ export default function ViewDetails() {
               <span className="font-medium dark:text-black">Birth Marks:</span>{" "}
               {caseData.birth_marks}
             </p>
+
+            {caseData.case_type === "private" && (
+              <div className="mt-4 space-y-1">
+                <p className="text-sm mb-1 dark:text-black">
+                  <span className="font-medium dark:text-black">Tattoos:</span>{" "}
+                  {caseData.tattoos || "N/A"}
+                </p>
+                <p className="text-sm mb-1 dark:text-black">
+                  <span className="font-medium dark:text-black">Piercings:</span>{" "}
+                  {caseData.piercings || "N/A"}
+                </p>
+                <p className="text-sm mb-1 dark:text-black">
+                  <span className="font-medium dark:text-black">Dental:</span>{" "}
+                  {caseData.dental || "N/A"}
+                </p>
+                <p className="text-sm mb-1 dark:text-black">
+                  <span className="font-medium dark:text-black">Spectacles:</span>{" "}
+                  {caseData.spectacles || "N/A"}
+                </p>
+                <p className="text-sm mb-1 dark:text-black">
+                  <span className="font-medium dark:text-black">Hair Type:</span>{" "}
+                  {caseData.hair_type || "N/A"}
+                </p>
+                <p className="text-sm mb-1 dark:text-black">
+                  <span className="font-medium dark:text-black">Hair Length:</span>{" "}
+                  {caseData.hair_length || "N/A"}
+                </p>
+                <p className="text-sm mb-1 dark:text-black">
+                  <span className="font-medium dark:text-black">Blood Group:</span>{" "}
+                  {caseData.blood_group || "N/A"}
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>

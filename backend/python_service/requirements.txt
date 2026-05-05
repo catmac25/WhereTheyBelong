@@ -8,3 +8,5 @@ jinja2
 opencv-python
 sqlmodel
 mediapipe
+torch
+transformers

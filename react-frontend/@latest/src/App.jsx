@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom'
 import RegisterNewCase from './components/registerCase.jsx'
-import RegisterNoImageCase from './components/RegisterNoImageCase.jsx'
+import RegisterNoImageCase from './components/RegisterNoImage.jsx'
 import ThemeToggle from './components/ThemeToggle.jsx'
 import CursorFollower from './components/CursorFollower.jsx'
 import WavyText from './components/WavyText.jsx'
@@ -32,6 +32,7 @@ import ContactUs from './components/ContactUs.jsx'
 function AppContent() {
   const location = useLocation()
   const { isAdmin } = useAdminAuth();
+  
   const { logout } = useAdminAuth();
   const { user, loguserout } = useUserAuth();
   useEffect(() => {

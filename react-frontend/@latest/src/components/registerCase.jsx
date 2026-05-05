@@ -1,6 +1,6 @@
-import React, { useMemo, useState, useEffect } from 'react'
+import React, { useMemo, useState, useEffect, useRef } from 'react'
 import { useUserAuth } from './UserAuthContext'
-const API_URL = import.meta?.env?.VITE_API_URL || 'http://localhost:4000/api'
+const API_BASE = import.meta?.env?.VITE_API_URL || '/api'
 
 export default function RegisterNewCase() {
   const [imageFile, setImageFile] = useState(null)
@@ -8,6 +8,9 @@ export default function RegisterNewCase() {
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const [aiImageDetected, setAiImageDetected] = useState(false)
+  const [aiChecking, setAiChecking] = useState(false)
+  const fileInputRef = useRef(null)
   const { user } = useUserAuth();
   const userToken = user?.token || localStorage.getItem("userToken");
   const [form, setForm] = useState({
@@ -37,21 +40,50 @@ export default function RegisterNewCase() {
     }
   }, [user]);
   const canSubmit = useMemo(() => {
-    return Boolean(imageFile && form.name && String(form.age))
-  }, [imageFile, form.name, form.age])
+    return Boolean(imageFile && form.name && String(form.age) && !aiImageDetected)
+  }, [imageFile, form.name, form.age, aiImageDetected])
 
-  function onPickFile(e) {
+  async function onPickFile(e) {
     const file = e.target.files?.[0]
     setError('')
     setMessage('')
+    setAiImageDetected(false)
     if (!file) {
       setImageFile(null)
       setImagePreviewUrl('')
       return
     }
+    setAiChecking(true)
     setImageFile(file)
     const url = URL.createObjectURL(file)
     setImagePreviewUrl(url)
+
+    try {
+      const formData = new FormData()
+      formData.append('image', file)
+      const res = await fetch(`${API_BASE}/check-ai-image`, {
+        method: 'POST',
+        body: formData,
+      })
+      if (!res.ok) {
+        const text = await res.text()
+        throw new Error(`AI check failed (${res.status}): ${text.slice(0, 100)}`)
+      }
+      const data = await res.json()
+      if (data.is_ai) {
+        setAiImageDetected(true)
+        setImageFile(null)
+        URL.revokeObjectURL(url)
+        setImagePreviewUrl('')
+        if (fileInputRef.current) fileInputRef.current.value = ''
+        setError(`AI-generated image detected (${(data.confidence * 100).toFixed(1)}% confidence). Please upload a real photo of the missing person.`)
+      }
+    } catch (err) {
+      console.error('AI check failed:', err)
+      setError('Could not verify image. Please try again or use a different image.')
+    } finally {
+      setAiChecking(false)
+    }
   }
   async function registerCase() {
     const formData = new FormData();
@@ -141,11 +173,13 @@ export default function RegisterNewCase() {
               <rect x="3" y="13" width="18" height="8" rx="2" stroke="#E5E7EB" strokeWidth="1.5" />
             </svg>
             <div className="text-sm text-gray-600">Click to select an image or drag & drop</div>
-            <input id="file-input" type="file" accept="image/png,image/jpeg,image/jpg" onChange={onPickFile} className="sr-only" />
+            <input id="file-input" ref={fileInputRef} type="file" accept="image/png,image/jpeg,image/jpg" onChange={onPickFile} className="sr-only" disabled={aiChecking} />
             <div className="text-xs text-gray-400 mt-2">PNG, JPG up to your server limit</div>
           </label>
 
-          {imagePreviewUrl ? (
+          {aiChecking && <div className="text-sm text-amber-600 mt-2">Checking image for AI generation…</div>}
+          {aiImageDetected && <div className="text-sm text-red-600 mt-2 font-medium">AI-generated image detected. Please upload a real photo.</div>}
+          {imagePreviewUrl && !aiImageDetected ? (
             <div style={{ marginTop: 12 }}>
               <img src={imagePreviewUrl} alt="preview" style={{ maxWidth: '100%', height: 'auto', borderRadius: 8 }} />
             </div>
@@ -351,6 +385,8 @@ export default function RegisterNewCase() {
                 setImagePreviewUrl('')
                 setMessage('')
                 setError('')
+                setAiImageDetected(false)
+                if (fileInputRef.current) fileInputRef.current.value = ''
               }}
               className="px-4 py-2 border rounded-md text-sm"
             >

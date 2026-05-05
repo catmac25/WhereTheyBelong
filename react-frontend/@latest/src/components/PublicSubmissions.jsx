@@ -3,6 +3,7 @@ import React, { useState } from "react";
 const PublicSubmissions = () => {
     const [form, setForm] = useState({
         name: "",
+        gender: "",
         mobile_number: "",
         email: "",
         address: "",
@@ -36,8 +37,8 @@ const PublicSubmissions = () => {
                 formData.append(key, value);
             });
 
-            // Example POST request to backend
-            const res = await fetch("http://localhost:8000/publicsubmission", {
+            // Route via node_proxy so it can trigger email + PDF
+            const res = await fetch("/api/publicsubmission", {
                 method: "POST",
                 body: formData,
             });
@@ -46,6 +47,7 @@ const PublicSubmissions = () => {
                 setSuccess(true);
                 setForm({
                     name: "",
+                    gender: "",
                     mobile_number: "",
                     email: "",
                     address: "",
@@ -138,6 +140,26 @@ const PublicSubmissions = () => {
                             className="mt-1 w-full border border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-blue-300"
                             required
                         />
+                    </div>
+
+                    <div>
+                        <label className="text-sm font-medium text-gray-600">
+                            Gender of person sighted <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                            name="gender"
+                            value={form.gender}
+                            onChange={handleChange}
+                            required
+                            className="mt-1 w-full border border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-blue-300 bg-white dark:bg-gray-900"
+                        >
+                            <option value="" disabled>
+                                Select gender
+                            </option>
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                            <option value="Prefer not to say">Prefer not to say</option>
+                        </select>
                     </div>
 
                     <div>

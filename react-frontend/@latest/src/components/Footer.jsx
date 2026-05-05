@@ -6,7 +6,10 @@ export default function Footer({ company = "Where They Belong ❤️" }) {
   const [theme, setTheme] = useState(() =>
     typeof window !== "undefined" ? (localStorage.getItem("site-theme") || "dark") : "dark"
   );
-  const [email, setEmail] = useState("");
+
+  const [email, setEmail] = useState("");   
+
+  
   const [submitting, setSubmitting] = useState(false);
   const [status, setStatus] = useState(null);
 
@@ -29,7 +32,6 @@ export default function Footer({ company = "Where They Belong ❤️" }) {
       setStatus({ type: "error", message: "Please enter a valid email." });
       return;
     }
-
     setSubmitting(true);
     try {
       // Placeholder: integrate with your API here
@@ -45,7 +47,7 @@ export default function Footer({ company = "Where They Belong ❤️" }) {
 
   return (
     <footer className="rc-footer" role="contentinfo" aria-labelledby="rc-footer-heading">
-      <div className="rc-footer__container">
+      <div className="rc-footer__container" >
         <div className="rc-brand">
           <a href="/" className="rc-logo" aria-label={`${company} home`}>
             <svg width="40" height="40" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -53,6 +55,7 @@ export default function Footer({ company = "Where They Belong ❤️" }) {
               <path d="M7 12h10" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" />
             </svg>
             <span className="rc-site-title">{company}</span>
+            {/* setEmail({company}) */}
           </a>
           <p className="rc-tag">Designing delightful experiences</p>
         </div>

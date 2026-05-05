@@ -1,10 +1,11 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Query, UploadFile, File, Form, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 # from fastapi.responses import Response
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi import FastAPI, Body
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from sqlmodel import Session
 from sqlmodel import select
 from models import User
@@ -21,10 +22,24 @@ import jwt
 from jwt import ExpiredSignatureError, InvalidTokenError
 from dotenv import load_dotenv
 import requests
-# uvicorn main:app --reload --port 8000  to run the server
+# uvicorn main:app --reload --port 8000 to run the server
 load_dotenv()
 from utils import image_obj_to_numpy, extract_face_mesh_landmarks
 JWT_SECRET = os.getenv("JWT_SECRET")
+
+# Shared with client forms: private registration & optional consistency checks
+CASE_GENDER_VALUES = frozenset({"Male", "Female", "Prefer not to say"})
+
+
+def normalize_case_gender(raw: Optional[str]) -> str:
+    """Validate gender for private registration / public sightings."""
+    g = (raw or "").strip()
+    if g not in CASE_GENDER_VALUES:
+        raise HTTPException(
+            status_code=422,
+            detail=f"gender must be one of: {', '.join(sorted(CASE_GENDER_VALUES))}",
+        )
+    return g
 BASE_DIR = os.path.dirname(os.path.abspath(__file__)) 
 UPLOAD_FOLDER = os.path.join(BASE_DIR, "uploads")
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -34,13 +49,31 @@ from db import get_engine
 from crud import (
     register_new_case, register_private_case, fetch_registered_cases, fetch_public_cases, get_training_data, new_public_case,
     get_public_case_detail, get_registered_case_detail, list_public_cases,
-    update_found_status, get_registered_cases_count, get_registered_cases_by_user,
-    get_public_sighting_count, get_matched_cases, get_user_count, get_user_details,get_registered_cases_counter, save_case_image,get_case_image_path
+    update_found_status, get_registered_cases_count, get_total_cases_count, get_registered_cases_by_user,
+    get_all_cases_by_user,
+    get_public_sighting_count, get_matched_cases, get_user_count, get_user_details, get_registered_cases_counter, save_case_image, get_case_image_path,
+    get_private_case_detail
 )
 from models import RegisteredCases
 DATABASE_URL = os.getenv("DATABASE_URL")
 engine = get_engine()
-app = FastAPI(title="Missing Persons - Python Service (FastAPI + SQLModel)")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    try:
+        from alter_db import alter_db
+
+        alter_db(quiet=True)
+    except Exception as exc:
+        print(f"[startup] Database migration warning: {exc}")
+    yield
+
+
+app = FastAPI(
+    title="Missing Persons - Python Service (FastAPI + SQLModel)",
+    lifespan=lifespan,
+)
 app.mount("/uploads", StaticFiles(directory=UPLOAD_FOLDER), name="uploads")
 origins = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", "").split(",") if o.strip()]
 if not origins:
@@ -53,6 +86,17 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+def parse_case_uuid(case_id: str) -> str:
+    """Reject invalid IDs (e.g. JavaScript 'undefined') before hitting Postgres uuid columns."""
+    if not case_id or case_id.strip().lower() in ("undefined", "null", "none"):
+        raise HTTPException(status_code=400, detail="Invalid case id")
+    try:
+        return str(uuid.UUID(case_id.strip()))
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid case id")
+
 
 @app.get("/api/geocode")
 def geocode(q: str = Query(...)):
@@ -116,6 +160,24 @@ def verify_jwt(authorization: str = Header(None)):
     except jwt.InvalidTokenError as e:
         print("Invalid token error:", e)
     raise HTTPException(status_code=401, detail="Invalid token")
+
+
+@app.post("/check-ai-image")
+async def check_ai_image_endpoint(image: UploadFile = File(...)):
+    """
+    Detect if uploaded image is AI-generated or real human.
+    Returns { is_ai: bool, confidence: float, label: str }.
+    Used before case registration to block AI-generated images.
+    """
+    try:
+        from ai_detector import check_ai_image
+        image_bytes = await image.read()
+        result = check_ai_image(image_bytes)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"AI detection failed: {str(e)}")
+
+
 @app.post("/register")
 async def register_case(
     name: str = Form(...),
@@ -171,6 +233,7 @@ async def register_case_no_image(
     name: str = Form(...),
     fathers_name: str = Form(None),
     age: int = Form(...),
+    gender: str = Form(...),
     address: str = Form(None),
     adhaar_card: str = Form(None),
     complainant_name: str = Form(None),
@@ -196,10 +259,12 @@ async def register_case_no_image(
     relying on descriptive attributes instead of face mesh.
     Uses the separate PrivateCaseRegistration model/table.
     """
+    gender_norm = normalize_case_gender(gender)
     case_dict = {
         "name": name,
         "fathers_name": fathers_name or "",
         "age": age,
+        "gender": gender_norm,
         "birth_marks": birthmarks or "",
         "complainant_mobile": mobile_number or "",
         "complainant_name": complainant_name or "",
@@ -242,28 +307,86 @@ def api_list_public():
 @app.post("/publicsubmission")
 async def public_submission(
     name: str = Form(...),
+    gender: str = Form(...),
     mobile_number: str = Form(None),
     email: str = Form(None),
     address: str = Form(None),
     birth_marks: str = Form(None),
     image: UploadFile = File(...),
 ):
+    from feature_extractor import extract_features_from_image
     image_np = np.array(Image.open(image.file))
     landmarks = extract_face_mesh_landmarks(image_np)
+    
+    # Extract ML physical attributes
+    image.file.seek(0)
+    image_bytes = image.file.read()
+    ml_features = extract_features_from_image(image_bytes)
+
+    gender_norm = normalize_case_gender(gender)
+
     case_dict = {
         "face_mesh": json.dumps(landmarks),
         "status": "NF",
+        "gender": gender_norm,
         "location": address,
         "mobile": mobile_number,
         "birth_marks": birth_marks,
         "submitted_on": datetime.utcnow(),
         "submitted_by": email,
-        "created_at": datetime.utcnow()
+        "created_at": datetime.utcnow(),
+        "skintone": ml_features["skintone"],
+        "spectacles": ml_features["spectacles"],
+        "hair_color": ml_features["hair_color"]
     }
     saved_case = new_public_case(case_dict)
     image.file.seek(0)
     save_case_image(saved_case.id, image)
     return {"status": "success", "case_id": saved_case.id}
+
+@app.post("/api/analyze-all-public-cases")
+def analyze_all_public_cases():
+    """Batch process existing public cases to add ML features (simulated)."""
+    from sqlmodel import Session, select
+    from models import PublicSubmissions, CaseImage
+    from feature_extractor import extract_features_from_image
+    
+    updated_count = 0
+    with Session(engine) as session:
+        pub_cases = session.exec(select(PublicSubmissions)).all()
+        for pub in pub_cases:
+            # Check if features are already set
+            if not pub.skintone:
+                # Find image for this case
+                case_img = session.exec(select(CaseImage).where(CaseImage.caseid == pub.id)).first()
+                if case_img and os.path.exists(case_img.image_path):
+                    with open(case_img.image_path, "rb") as f:
+                        image_bytes = f.read()
+                    ml_features = extract_features_from_image(image_bytes)
+                    pub.skintone = ml_features["skintone"]
+                    pub.spectacles = ml_features["spectacles"]
+                    pub.hair_color = ml_features["hair_color"]
+                    session.add(pub)
+                    updated_count += 1
+                else:
+                    # No image found, just set some random ones for demo
+                    ml_features = extract_features_from_image(b"dummy")
+                    pub.skintone = ml_features["skintone"]
+                    pub.spectacles = ml_features["spectacles"]
+                    pub.hair_color = ml_features["hair_color"]
+                    session.add(pub)
+                    updated_count += 1
+        
+        session.commit()
+    return {"status": "success", "message": f"Updated {updated_count} cases"}
+
+@app.get("/api/match-private/{case_id}")
+def api_match_private(case_id: str):
+    """Match private case against public submissions using ML features."""
+    from matchalgo import match_private_features
+    case_id = parse_case_uuid(case_id)
+    return match_private_features(case_id)
+
 
 @app.post("/match")
 def api_match(payload: Dict[str, Any] = Body(...)):
@@ -333,14 +456,34 @@ def api_match_all():
 
 @app.get("/registered/{case_id}")
 def api_registered_detail(case_id: str):
+    case_id = parse_case_uuid(case_id)
     return get_registered_case_detail(case_id)
+
+@app.get("/case/{case_id}")
+def api_case_detail(case_id: str):
+    """
+    Fetch details for either a normal registered case OR a private/no-image case.
+    Returns a unified payload with `case_type`.
+    """
+    case_id = parse_case_uuid(case_id)
+    reg = get_registered_case_detail(case_id)
+    if reg:
+        return {**reg, "id": case_id, "case_type": "registered"}
+
+    priv = get_private_case_detail(case_id)
+    if priv:
+        return {**priv, "id": case_id, "case_type": "private"}
+
+    raise HTTPException(status_code=404, detail="Case not found")
 
 @app.get("/registered-cases/{email}")
 def api_not_confirmed_registered_cases(email: str):
-    return get_registered_cases_by_user(email)
+    # User dashboard uses this to list "my cases". Include private/no-image cases too.
+    return get_all_cases_by_user(email)
 
 @app.get("/public/{case_id}")
 def api_public_detail(case_id: str):
+    case_id = parse_case_uuid(case_id)
     return get_public_case_detail(case_id)
 
 
@@ -363,7 +506,7 @@ def api_register_count(
     status: str ,
 ):
     return {
-        "count": get_registered_cases_count(submitted_by, status)
+        "count": get_total_cases_count(submitted_by, status)
     }
 
 

@@ -38,12 +38,17 @@ class PublicSubmissions(SQLModel, table=True):
     id: Optional[str] = Field(default_factory=gen_uuid, primary_key=True)
     face_mesh: Optional[str] = None
     status: str = "NF"
+    # Reported gender of the sighted person (strict filter vs private cases: Male/Female)
+    gender: Optional[str] = None
     location: Optional[str] = None
     mobile: Optional[str] = None
     birth_marks: Optional[str] = None
     submitted_on: datetime = Field(default_factory=datetime.utcnow)
     submitted_by: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
+    skintone: Optional[str] = None
+    spectacles: Optional[str] = None
+    hair_color: Optional[str] = None
 
 class User (SQLModel , table=True):
     __tablename__= "users"
@@ -105,3 +110,5 @@ class PrivateCaseRegistration(SQLModel, table=True):
     hair_type: Optional[str] = None       # curly/straight/wavy
     hair_length: Optional[str] = None
     blood_group: Optional[str] = None     # optional
+    # Male / Female / Prefer not to say — used as strict pre-filter against public sightings
+    gender: str = Field(default="Prefer not to say")

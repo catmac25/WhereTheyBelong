@@ -1,158 +1,255 @@
-import React, { useState, useEffect } from "react";
-import { useLocation , useNavigate} from "react-router-dom";
+import React, { useState, useEffect, useMemo } from "react";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
+
+/**
+ * Shows registered/private case vs public sighting matches.
+ * Expects navigation state from UserDashboard: { matchData, caseType }
+ * matchData should include registeredId + publicIds (or matches[] for private API).
+ */
 export default function MatchedData() {
-    const { state } = useLocation();
-    const matchData = state?.matchData;
-    const [publicDataList, setPublicDataList] = useState([]); //list of objects 
-    const [registeredData, setRegisteredData] = useState(null);
-    const [regId, setRegId] = useState(null);
-    const [publicImages, setPublicImages] = useState({});
-    const navigate = useNavigate();
-    useEffect(() => {
-        console.log(matchData);
-        const fetchAll = async () => {
-            try {
-                const promises = matchData.publicIds.map(id =>
-                    fetch(`http://localhost:4000/api/public/${id}`)
-                        .then(res => {
-                            if (!res.ok) throw new Error("Network response was not ok");
-                            return res.json();
-                        })
-                );
-                const results = await Promise.all(promises);
-                setPublicDataList(results);
-            } catch (err) {
-                console.error("Error fetching public data:", err);
-            }
+  const { id: routeCaseId } = useParams();
+  const { state } = useLocation();
+  const navigate = useNavigate();
+
+  const matchData = state?.matchData;
+  const caseType = state?.caseType || "registered";
+
+  const registeredId = matchData?.registeredId || routeCaseId;
+
+  const publicIds = useMemo(() => {
+    if (!matchData) return [];
+    if (Array.isArray(matchData.publicIds) && matchData.publicIds.length > 0) {
+      return matchData.publicIds.map(String);
+    }
+    if (Array.isArray(matchData.matches)) {
+      return matchData.matches
+        .map((m) => m.public_id)
+        .filter(Boolean)
+        .map(String);
+    }
+    return [];
+  }, [matchData]);
+
+  const [publicDataList, setPublicDataList] = useState([]);
+  const [registeredData, setRegisteredData] = useState(null);
+  const [regImagePath, setRegImagePath] = useState(null);
+  const [publicImages, setPublicImages] = useState({});
+
+  useEffect(() => {
+    if (!publicIds.length) {
+      setPublicDataList([]);
+      return;
+    }
+    const fetchAll = async () => {
+      try {
+        const results = await Promise.all(
+          publicIds.map((pid) =>
+            fetch(`http://localhost:4000/api/public/${pid}`).then((res) => {
+              if (!res.ok) throw new Error(`public ${pid}`);
+              return res.json();
+            })
+          )
+        );
+        setPublicDataList(results);
+      } catch (err) {
+        console.error("Error fetching public data:", err);
+        setPublicDataList([]);
+      }
+    };
+    fetchAll();
+  }, [publicIds.join(",")]);
+
+  useEffect(() => {
+    if (!registeredId || registeredId === "undefined") {
+      setRegisteredData(null);
+      return;
+    }
+    const fetchRegisteredDetails = async () => {
+      try {
+        const resp = await fetch(
+          `http://localhost:4000/api/cases/${encodeURIComponent(registeredId)}`
+        );
+        if (!resp.ok) {
+          setRegisteredData(null);
+          return;
         }
-        fetchAll();
-    }, [matchData]);
-    useEffect(() => {
-        const fetchRegisteredDetails = async () => {
-            try {
-                const resp = await fetch(`http://localhost:4000/api/cases/${matchData.registeredId}`);
-                const data = await resp.json();
-                setRegisteredData(data);
-                console.log(registeredData);
-            } catch (err) {
-                console.log(err, "error occurred");
-            }
+        const data = await resp.json();
+        setRegisteredData(data);
+      } catch (err) {
+        console.log(err, "error occurred");
+        setRegisteredData(null);
+      }
+    };
+    fetchRegisteredDetails();
+  }, [registeredId]);
+
+  useEffect(() => {
+    if (caseType === "private" || !registeredId || registeredId === "undefined") {
+      setRegImagePath(null);
+      return;
+    }
+    async function fetchImage() {
+      try {
+        const res = await fetch(
+          `http://localhost:4000/api/images/${encodeURIComponent(registeredId)}`
+        );
+        if (!res.ok) {
+          setRegImagePath(null);
+          return;
         }
-        fetchRegisteredDetails();
-    }, [matchData])
-    useEffect(() => {
-        async function fetchImage() {
-            try {
-                const res = await fetch(`http://localhost:4000/api/images/${matchData.registeredId}`);
-                const data = await res.json(); // parse JSON
-                setRegId(data.image_path);     // 
-            } catch (err) {
-                console.log("error fetching image");
-            }
-        }
-        fetchImage();
-    }, [matchData])
-    useEffect(() => {
-        const fetchPublicImages = async () => {
-            try {
-                // Loop over publicIds and fetch images
-                const promises = matchData.publicIds.map(async id => {
-                    const res = await fetch(`http://localhost:4000/api/images/${id}`);
-                    if (!res.ok) throw new Error(`Image not found for ${id}`);
-                    const data = await res.json();
-                    return { id, image_path: data.image_path };
-                });
+        const data = await res.json();
+        setRegImagePath(data.image_path);
+      } catch (err) {
+        console.log("error fetching image");
+        setRegImagePath(null);
+      }
+    }
+    fetchImage();
+  }, [registeredId, caseType]);
 
-                const results = await Promise.all(promises);
+  useEffect(() => {
+    if (!publicIds.length) {
+      setPublicImages({});
+      return;
+    }
+    const fetchPublicImages = async () => {
+      try {
+        const results = await Promise.all(
+          publicIds.map(async (id) => {
+            const res = await fetch(
+              `http://localhost:4000/api/images/${encodeURIComponent(id)}`
+            );
+            if (!res.ok) return { id, image_path: null };
+            const data = await res.json();
+            return { id, image_path: data.image_path };
+          })
+        );
+        const imagesObj = {};
+        results.forEach((img) => {
+          if (img.image_path) imagesObj[img.id] = img.image_path;
+        });
+        setPublicImages(imagesObj);
+      } catch (err) {
+        console.error("Error fetching public images:", err);
+        setPublicImages({});
+      }
+    };
+    fetchPublicImages();
+  }, [publicIds.join(",")]);
 
-                // Convert array to object for easy access
-                const imagesObj = {};
-                results.forEach(img => {
-                    imagesObj[img.id] = img.image_path;
-                });
-
-                setPublicImages(imagesObj);
-            } catch (err) {
-                console.error("Error fetching public images:", err);
-            }
-
-        };
-        fetchPublicImages();
-    }, [matchData])
+  if (!matchData) {
     return (
-        <div className=" h-screen grid grid-cols-2 gap-4 p-4 bg-gray-100 dark:bg-gray-500 mx-10 rounded-3xl">
-            {/* Left: Registered Case Details */}
-            <div className="bg-white rounded-2xl shadow p-6 overflow-auto dark:bg-gray-900">
-                <h2 className="text-2xl font-semibold mb-4">Registered Case Details</h2>
-                <div className=" bg-gray-300 rounded-2xl w-30 h-30 mb-6 "> <img className="w-full h-full object-cover rounded-xl"src={`http://localhost:8000${regId}`} /></div>
-                <div className="space-y-4">
-                    <div className="border p-4 rounded-xl bg-gray-50 dark:bg-gray-700">
-                        <h3 className="font-semibold text-lg">Case ID </h3>
-                        <p>{matchData.registeredId}</p>
-                    </div>
-                    <div className="border p-4 rounded-xl bg-gray-50 dark:bg-gray-700">
-                        <h3 className="font-semibold text-lg">Name</h3>
-                        <p>{registeredData?.name}</p>
-                    </div>
-
-                    <div className="border p-4 rounded-xl bg-gray-50 dark:bg-gray-700">
-                        <h3 className="font-semibold text-lg">Age</h3>
-                        <p>
-                            {registeredData?.age}
-                        </p>
-                    </div>
-
-                    <div className="border p-4 rounded-xl bg-gray-50 dark:bg-gray-700">
-                        <h3 className="font-semibold text-lg">Birth Marks</h3>
-                        <p>{registeredData?.birth_marks}</p>
-                    </div>
-
-                    <div className="border p-4 rounded-xl bg-gray-50 dark:bg-gray-700">
-                        <h3 className="font-semibold text-lg">Last Seen</h3>
-                        <p>{registeredData?.last_seen}</p>
-                    </div>
-                </div>
-            </div>
-
-            {/* Right: Matches Found */}
-            <div className="bg-white rounded-2xl shadow p-6 overflow-auto dark:bg-gray-900">
-                <h2 className="text-2xl font-semibold mb-4">Matches Found</h2>
-
-                <div className="space-y-4">
-                    {publicDataList.map((item, index) => (
-                        <div className="border py-4 px-3 rounded-xl bg-gray-50 flex gap-3 items-center dark:bg-gray-700">
-
-                            <div className="w-24 h-24 bg-gray-300 rounded-xl overflow-hidden">
-                                {publicImages[item.id] ? (
-                                    <img
-                                        src={`http://localhost:8000${publicImages[item.id]}`}
-                                        alt={`Match ${item.id}`}
-                                        className="w-full h-full object-cover rounded-xl"
-                                    />
-                                ) : (
-                                    <div className="w-full h-full bg-gray-300 flex items-center justify-center text-sm text-gray-500">
-                                        No Image
-                                    </div>
-                                )}
-                            </div>
-
-                            <div>
-                                <h3 className="font-semibold text-lg">Match : {item.id}</h3>
-                                <p>Submitted By: {item.submitted_by}</p>
-                                <p>Location: {item.location}</p>
-                                <p>Birth Marks : {item.birth_marks}</p>
-                            </div>
-                            <div>
-                                <button onClick = {() => navigate(`/viewmap/${item.id}` , {
-                                    state: {
-                                        lastSeen: item.location
-                                    }
-                                })} className="h-10 w-40 bg-green-700 text-bold hover:bg-green-500 rounded-2xl text-white mr-3">View on Map</button>
-                                </div>
-                        </div>
-                    ))}
-                </div>
-            </div>
-        </div>
+      <div className="mx-10 my-8 rounded-2xl bg-amber-50 p-6 text-amber-900">
+        <p className="font-medium">No match data loaded.</p>
+        <p className="mt-2 text-sm text-amber-800">
+          Open this page from the dashboard after running <strong>Check for Match</strong> on a
+          case, or go back and try again.
+        </p>
+        <button
+          type="button"
+          onClick={() => navigate(-1)}
+          className="mt-4 rounded-lg bg-amber-200 px-4 py-2 text-sm font-medium text-amber-950"
+        >
+          Go back
+        </button>
+      </div>
     );
+  }
+
+  return (
+    <div className="mx-10 my-4 grid h-screen min-h-0 grid-cols-1 gap-4 rounded-3xl bg-gray-100 p-4 dark:bg-gray-500 lg:grid-cols-2">
+      <div className="overflow-auto rounded-2xl bg-white p-6 shadow dark:bg-gray-900">
+        <h2 className="mb-2 text-2xl font-semibold">Your case</h2>
+        {caseType === "private" && (
+          <p className="mb-4 text-sm font-medium text-purple-600">
+            Private (no-image) case — no reference photo
+          </p>
+        )}
+
+        <div className="mb-6 h-40 w-40 overflow-hidden rounded-2xl bg-gray-200 dark:bg-gray-700">
+          {regImagePath ? (
+            <img
+              className="h-full w-full object-cover"
+              src={`http://localhost:8000${regImagePath}`}
+              alt="Registered"
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center p-2 text-center text-xs text-gray-500">
+              {caseType === "private" ? "No image on file" : "No image"}
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-4">
+          <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-600 dark:bg-gray-700">
+            <h3 className="text-lg font-semibold">Case ID</h3>
+            <p className="font-mono text-sm">{registeredId}</p>
+          </div>
+          <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-600 dark:bg-gray-700">
+            <h3 className="text-lg font-semibold">Name</h3>
+            <p>{registeredData?.name ?? "—"}</p>
+          </div>
+          <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-600 dark:bg-gray-700">
+            <h3 className="text-lg font-semibold">Age</h3>
+            <p>{registeredData?.age ?? "—"}</p>
+          </div>
+          <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-600 dark:bg-gray-700">
+            <h3 className="text-lg font-semibold">Birth marks</h3>
+            <p>{registeredData?.birth_marks ?? "—"}</p>
+          </div>
+          <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-600 dark:bg-gray-700">
+            <h3 className="text-lg font-semibold">Last seen</h3>
+            <p>{registeredData?.last_seen ?? "—"}</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="overflow-auto rounded-2xl bg-white p-6 shadow dark:bg-gray-900">
+        <h2 className="mb-4 text-2xl font-semibold">Public sightings matched</h2>
+        {publicDataList.length === 0 ? (
+          <p className="text-gray-500">No public records to show for this result.</p>
+        ) : (
+          <div className="space-y-4">
+            {publicDataList.map((item) => (
+              <div
+                key={item.id}
+                className="flex flex-wrap items-center gap-3 rounded-xl border border-gray-100 bg-gray-50 px-3 py-4 dark:border-gray-600 dark:bg-gray-700"
+              >
+                <div className="h-24 w-24 shrink-0 overflow-hidden rounded-xl bg-gray-300">
+                  {publicImages[item.id] ? (
+                    <img
+                      src={`http://localhost:8000${publicImages[item.id]}`}
+                      alt={`Match ${item.id}`}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-xs text-gray-500">
+                      No image
+                    </div>
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h3 className="font-semibold text-lg">Public ID: {item.id}</h3>
+                  <p className="text-sm">Submitted by: {item.submitted_by ?? "—"}</p>
+                  <p className="text-sm">Location: {item.location ?? "—"}</p>
+                  <p className="text-sm">Birth marks: {item.birth_marks ?? "—"}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() =>
+                    navigate(`/viewmap/${item.id}`, {
+                      state: { lastSeen: item.location },
+                    })
+                  }
+                  className="rounded-2xl bg-green-700 px-4 py-2 text-white hover:bg-green-500"
+                >
+                  View on map
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
