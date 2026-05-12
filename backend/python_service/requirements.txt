@@ -10,3 +10,5 @@ sqlmodel
 mediapipe
 torch
 transformers
+fastapi
+uvicorn
