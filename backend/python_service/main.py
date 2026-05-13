@@ -96,7 +96,10 @@ def parse_case_uuid(case_id: str) -> str:
         return str(uuid.UUID(case_id.strip()))
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid case id")
-
+# healthcheck
+@app.get("/")
+def root():
+    return {"message": "FastAPI backend running"}
 
 @app.get("/api/geocode")
 def geocode(q: str = Query(...)):
