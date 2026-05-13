@@ -35,7 +35,7 @@ pillow
 jinja2
 sqlmodel
 
-protobuf==4.25.3
+# protobuf==4.25.3
 opencv-python-headless==4.9.0.80
 mediapipe==0.10.9
 
