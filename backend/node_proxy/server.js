@@ -281,7 +281,10 @@ async function sendMatchFoundEmail(caseId, caseName, userEmail) {
     logSendgridError(`SendGrid: failed to send match-found email to ${userEmail}`, err);
   }
 }
-
+//health check
+app.get('/', (req,res)=> {
+  res.send("Node Proxy Server Running");
+})
 // Test-only endpoint: send a registered-case email without touching the Python/DB layer.
 app.post("/api/test-registered-email", async (req, res) => {
   const caseId = req.body.case_id || "TEST-REGISTERED-CASE";
