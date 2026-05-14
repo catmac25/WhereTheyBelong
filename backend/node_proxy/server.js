@@ -17,7 +17,7 @@ const passport = require("passport")
 const session = require("express-session")
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const app = express();
-const {Server} = require("socket.io");
+// const {Server} = require("socket.io");
 const http = require("http");
 const { extractFields } = require("./extractFields");
 // Middlewares
@@ -102,39 +102,39 @@ const io = new Server(server, {
   }
 });
 
-let onlineUsers = {}; 
-io.on("connection", (socket) => {
-  console.log("User connected:", socket.id);
+// let onlineUsers = {}; 
+// io.on("connection", (socket) => {
+//   console.log("User connected:", socket.id);
 
-  socket.on("register", (email) => {
-    onlineUsers[email] = socket.id;
-    console.log(`Registered ${email} → ${socket.id}`);
-  });
+//   socket.on("register", (email) => {
+//     onlineUsers[email] = socket.id;
+//     console.log(`Registered ${email} → ${socket.id}`);
+//   });
 
-  socket.on("disconnect", () => {
-    for (const email in onlineUsers) {
-      if (onlineUsers[email] === socket.id) {
-        delete onlineUsers[email];
-      }
-    }
-  });
-});
-app.post("/send-notification", (req, res) => {
-  const { email, title, message } = req.body;
+//   socket.on("disconnect", () => {
+//     for (const email in onlineUsers) {
+//       if (onlineUsers[email] === socket.id) {
+//         delete onlineUsers[email];
+//       }
+//     }
+//   });
+// });
+// app.post("/send-notification", (req, res) => {
+//   const { email, title, message } = req.body;
 
-  const socketId = onlineUsers[email];
+//   const socketId = onlineUsers[email];
   
-  if (socketId) {
-    io.to(socketId).emit("notification", {
-      title,
-      message,
-      email,
-      timestamp: new Date()
-    });
-  }
+//   if (socketId) {
+//     io.to(socketId).emit("notification", {
+//       title,
+//       message,
+//       email,
+//       timestamp: new Date()
+//     });
+//   }
 
-  res.json({ status: "sent" });
-});
+//   res.json({ status: "sent" });
+// });
 
 
 
@@ -333,7 +333,7 @@ app.get('/api/auth/google/callback',
         email: savedUser.email,
         name: savedUser.name
       });
-      res.redirect(`http://localhost:5173/login?token=${token}`);
+      res.redirect(`https://wheretheybelong.vercel.app/login?token=${token}`);
     } catch (error) {
       console.error("Google callback error:", error.message);
       res.redirect('/login?error=oauth_failed');
@@ -708,7 +708,7 @@ app.get("/api/images/:id", async (req, res) => {
 
 const PORT = process.env.PORT || 4000;
 server.listen(PORT, () => {
-  console.log(`Node proxy server + Socket.io running on http://localhost:${PORT} → forwarding to ${FASTAPI_URL}`);
+  console.log(`Node proxy server +  forwarding to ${FASTAPI_URL}`);
 
 // const text = "a boy wearing blue jacket seen near metro";
 
