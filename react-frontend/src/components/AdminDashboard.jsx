@@ -21,7 +21,7 @@ export default function AdminDashboard() {
     setLoading(true);
     setMatches([]);
     try {
-      const res = await axios.post(`${API_BASE_URL}/matcha`);
+      const res = await axios.post(`${PYTHON_API_URL}/matcha`);
       if (res.data.matched && res.data.matches && res.data.matches.length > 0) {
         setMatches(res.data.matches);
         setMatchedCases(res.data.matches.length);
